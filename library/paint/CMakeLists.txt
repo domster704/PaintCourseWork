@@ -1,8 +1,8 @@
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+#find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 
-add_library(paint SHARED
-        ${PROJECT_SOURCES})
+qt_add_library(paint STATIC
+        paint.cpp
+        paint/paint.hpp paint/paint_app.hpp paint_app.cpp palette_button.cpp paint/palette_button.hpp)
 
-set_property(TARGET paint PROPERTY CXX_STANDARD 20)
-install(TARGETS paint)
+target_link_libraries(paint PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_include_directories(paint INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})

@@ -1,70 +1,95 @@
-#include "header/paint.hpp"
-#include <vector>
+#include "paint/paint.hpp"
 
-std::vector<std::string> COLOR {
-   "#000000",
-   "#141923",
-   "#414168",
-   "#3a7fa7",
-   "#35e3e3",
-   "#8fd970",
-   "#5ebb49",
-   "#458352",
-   "#dcd37b",
-   "#fffee5",
-   "#ffd035",
-   "#cc9245",
-   "#a15c3e",
-   "#a42f3b",
-   "#f45b7a",
-   "#c24998",
-   "#81588d",
-   "#bcb0c2",
-   "#ffffff"
-};
-const int rowIndexForPalleteButtons = 0;
-const int rowIndexForFunctionButtons = 1;
-
-MainWindow::MainWindow(QWidget *parent): QMainWindow(parent) {
-    this->setWindowTitle("Paint");
-    QWidget* widget = new QWidget();
-    QGridLayout* mainForm = new QGridLayout(widget);
-
-    mainForm->addWidget(canvas, rowIndexForFunctionButtons + 1, 0, COLOR.size(), COLOR.size());
-    addPaletteButtons(mainForm);
-    addFunctionButton(mainForm);
-
-    setCentralWidget(widget);
-    setMinimumSize(640, 480);
-
-    /*delete mainForm;
-    delete widget;
-    delete palette;*/
+Canvas::Canvas(QWidget *parent) : QLabel(parent), spray_(false), width_(3) {
+    canvasImage_ = QImage(this->size(), QImage::Format_RGB32);
+    canvasImage_.fill(Qt::white);
+    penColor_ = QColor(0, 0, 0);
 }
 
-MainWindow::~MainWindow() {
-    delete canvas;
+void Canvas::mouseMoveEvent(QMouseEvent *e) {
+    if (lastPoint_.isNull()) {
+        UpdateLastCoords(e);
+        return;
+    }
+
+    QPainter painter(&canvasImage_);
+    QPen p(penColor_, width_, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+    painter.setPen(p);
+
+//    if (!spray_) {
+        painter.drawLine(lastPoint_, e->pos());
+        painter.end();
+//    } else {
+//        for (int i = 0; i < SPRAY_PARTICLES; i++) {
+//            int x0 = GetGaussianRand(0, SPRAY_DIAMETER);
+//            int y0 = GetGaussianRand(0, SPRAY_DIAMETER);
+//            auto point = e->position();
+//            painter.drawPoint(point.x() + x0, point.y() + y0);
+//        }
+//        painter.end();
+//    }
+
+    UpdateLastCoords(e);
+    this->update();
 }
 
-void MainWindow::addPaletteButtons(QGridLayout* layout) {
-    int i = 0;
-    for (std::string c : COLOR) {
-        PaletteButton* button = new PaletteButton(this, c);
-        QObject::connect(button, SIGNAL (clicked()), this, SLOT(setColor()));
-        layout->addWidget(button, rowIndexForPalleteButtons, i++, Qt::AlignTop | Qt::AlignLeft);
+void Canvas::resizeEvent(QResizeEvent *event) {
+    canvasImage_ = QImage(this->size(), QImage::Format_RGB32);
+    canvasImage_.fill(Qt::white);
+}
+
+void Canvas::mousePressEvent(QMouseEvent *event) {
+    if (event->button() == Qt::LeftButton) {
+        lastPoint_ = event->pos();
     }
 }
 
-void MainWindow::addFunctionButton(QGridLayout* layout) {
-    std::vector<std::pair<std::string, void(MainWindow::*)()>> functionButtonName {
-        {"Rectangle", &MainWindow::rectangle}
-    };
-    int index = 0;
-    for (std::pair i : functionButtonName) {
-        QPushButton* funcButton = new QPushButton(this);
-        funcButton->setText(QString::fromStdString(i.first));
-        QObject::connect(funcButton, SIGNAL(clicked()), this, SLOT(rectangle()));
-        layout->addWidget(funcButton, rowIndexForPalleteButtons, COLOR.size() + index++, Qt::AlignTop | Qt::AlignLeft);
-    }
+void Canvas::paintEvent(QPaintEvent *event) {
+    QPainter canvasPainter(this);
+    canvasPainter.drawImage(this->rect(), canvasImage_, canvasImage_.rect());
 }
 
+void Canvas::mouseReleaseEvent(QMouseEvent *e) {
+    if (!isCreatingFigure_)
+        return;
+    // TODO: добавлять в массив точки нажатия для создания фигур
+}
+
+void Canvas::DrawFigures(const std::function<void(QPainter *)> f) {
+    QPainter painter(&canvasImage_);
+    QPen p(penColor_, width_);
+    painter.setPen(p);
+
+    f(&painter);
+    painter.end();
+
+    update();
+}
+
+void Canvas::ReImage() {
+    canvasImage_ = QImage(this->size(), QImage::Format_RGB32);
+    canvasImage_.fill(Qt::white);
+    update();
+}
+
+void Canvas::UpdateLastCoords(QMouseEvent *e) {
+    lastPoint_ = e->pos();
+}
+
+//int Canvas::GetGaussianRand(int lo, int hi) {
+//    if (lo < hi) {
+//        int range = hi - lo;
+//        int val = (rand() % range + lo);
+//        val += (rand() % range + lo);
+//        val += (rand() % range + lo);
+//        val += (rand() % range + lo);
+//        float fVal = (float) val * 0.25f;
+//        return (int) fVal;
+//    } else {
+//        return 0;
+//    }
+//}
+
+void Canvas::SetPenColor(QColor c) {
+    penColor_ = c;
+}
